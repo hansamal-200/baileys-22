@@ -1,16 +1,47 @@
 <div align="center">
 
-![NexusTechPro Banner](https://files.catbox.moe/gzkpf8.jpg)
+<p>
+  <!-- Banner -->
+  <img src="https://files.catbox.moe/gzkpf8.jpg" alt="NexusTechPro Banner" />
+</p>
 
 # @nexustechpro/baileys
 
+<p>
+<img src="https://user-images.githubusercontent.com/74038190/212284100-561aa473-3905-4a80-b561-0d28506553ee.gif" width="100%">
+</p>
+
+
 **Advanced WhatsApp Web API — Built on WhiskeySockets/Baileys**
 
-[![NPM Version](https://img.shields.io/npm/v/@nexustechpro/baileys?color=success&logo=npm&style=flat-square)](https://www.npmjs.com/package/@nexustechpro/baileys)
-[![Downloads](https://img.shields.io/npm/dt/@nexustechpro/baileys?color=blue&logo=npm&style=flat-square)](https://www.npmjs.com/package/@nexustechpro/baileys)
-[![License](https://img.shields.io/npm/l/@nexustechpro/baileys?color=yellow&style=flat-square)](https://github.com/nexustechpro2/baileys/blob/main/LICENSE)
-[![Node Version](https://img.shields.io/node/v/@nexustechpro/baileys?style=flat-square)](https://nodejs.org)
-[![Socket Badge](https://socket.dev/api/badge/npm/package/@nexustechpro/baileys)](https://socket.dev/npm/package/@nexustechpro/baileys)
+<p>
+  <!-- NPM Version -->
+  <a href="https://www.npmjs.com/package/@nexustechpro/baileys">
+    <img src="https://img.shields.io/npm/v/@nexustechpro/baileys?color=success&logo=npm&style=flat-square" alt="NPM Version" />
+  </a>
+  <!-- Downloads -->
+  <a href="https://www.npmjs.com/package/@nexustechpro/baileys">
+    <img src="https://img.shields.io/npm/dt/@nexustechpro/baileys?color=blue&logo=npm&style=flat-square" alt="Downloads" />
+  </a>
+  <!-- License -->
+  <a href="https://github.com/nexustechpro2/baileys/blob/main/LICENSE">
+    <img src="https://img.shields.io/npm/l/@nexustechpro/baileys?color=yellow&style=flat-square" alt="License" />
+  </a>
+  <!-- Node Version -->
+  <a href="https://nodejs.org">
+    <img src="https://img.shields.io/node/v/@nexustechpro/baileys?style=flat-square" alt="Node Version" />
+  </a>
+  <!-- Socket Badge -->
+  <a href="https://socket.dev/npm/package/@nexustechpro/baileys">
+    <img src="https://socket.dev/api/badge/npm/package/@nexustechpro/baileys" alt="Socket Badge" />
+  </a>
+</p>
+<p>
+  <!-- WhatsApp Channel -->
+  <a href="https://www.whatsapp.com/channel/0029VbBK53XBvvslYeZlBe0V">
+    <img src="https://img.shields.io/badge/Join-WhatsApp%20Channel-25D366?logo=whatsapp&logoColor=white" alt="WhatsApp Channel" />
+  </a>
+</p>
 
 *Modern, feature-rich, and developer-friendly WhatsApp automation library*
 
@@ -31,6 +62,7 @@
   - [Media Messages](#media-messages)
   - [Buttons & Interactive](#buttons--interactive-messages)
   - [Extended Types](#extended-message-types)
+  - [AI Rich Messages](#ai-rich-messages)
   - [Status & Stories](#personal-status--story-statusbroadcast)
   - [Sticker Pack](#sticker-pack)
   - [Shorthand Wrappers](#shorthand-wrappers)
@@ -1033,6 +1065,318 @@ await sock.stickerPackMessage(jid, {
 
 ---
 
+---
+
+#### AI Rich Messages
+
+
+All types can be sent two ways:
+- **`sock.sendMessage`** with an `aiRich` content key
+- **Shorthand methods** like `sock.sendCodeBlock`, `sock.sendTable`, etc.
+
+---
+
+##### Code Block
+
+```javascript
+// via sendMessage
+await sock.sendMessage(jid, {
+  aiRich: {
+    language: 'javascript',
+    code: `async function fetchUser(id) {
+  const res = await fetch(\`/api/users/\${id}\`)
+  if (!res.ok) throw new Error('Not found')
+  return res.json()
+}`,
+    header: '**Fetch User Example**',
+    footer: '_Requires Node 18+_'
+  }
+}, { quoted: message })
+
+// via shorthand (sendCodeBlock / sendCodeBlockV2)
+await sock.sendCodeBlock(jid, code, quoted, {
+  language: 'javascript',
+  title: 'Example Code',
+  footer: 'Powered by NexusTechPro'
+})
+
+await sock.sendCodeBlockV2(jid, code, quoted, {
+  language: 'go',
+  title: 'Go Example',
+  text: 'Here is a Go snippet:',
+  footer: 'Powered by NexusTechPro'
+})
+```
+
+**Supported languages:** Any of the 190+ languages supported by PrismJS — `javascript`, `typescript`, `python`, `rust`, `go`, `java`, `cpp`, `kotlin`, `swift`, `bash`, `sql`, `dockerfile`, `solidity`, `graphql`, and many more.
+
+---
+
+##### Table
+
+```javascript
+// via sendMessage
+await sock.sendMessage(jid, {
+  aiRich: {
+    table: [
+      'Java vs JavaScript',             // title
+      ['Feature', 'Java', 'JavaScript'], // headers
+      ['Type', 'Compiled', 'Interpreted'],
+      ['Typing', 'Static', 'Dynamic'],
+      ['Main Use', 'Enterprise', 'Web']
+    ],
+    header: '**Comparison**',
+    footer: 'Hope this helps!'
+  }
+}, { quoted: message })
+
+// via shorthand (sendTable)
+await sock.sendTable(
+  jid,
+  'Java vs JavaScript',
+  ['Feature', 'Java', 'JavaScript'],
+  [
+    ['Type', 'Compiled', 'Interpreted'],
+    ['Typing', 'Static', 'Dynamic'],
+    ['Main Use', 'Enterprise', 'Web']
+  ],
+  quoted,
+  { headerText: 'Comparison:', footer: 'Hope this helps!' }
+)
+
+// via shorthand (sendTableV2) — pipe-delimited string format
+await sock.sendTableV2(
+  jid,
+  [
+    'Java vs JavaScript',
+    'Feature | Java | JavaScript',
+    'Type | Compiled | Interpreted;;Typing | Static | Dynamic;;Main Use | Enterprise | Web'
+  ],
+  quoted,
+  { headerText: 'Comparison:', text: 'Here is a table:', footer: 'Hope this helps!' }
+)
+
+// sendList — two-column key/value style
+await sock.sendList(
+  jid,
+  'Bot Info',
+  [['Name', 'NexusBot'], ['Version', '2.1.3'], ['Developer', 'THE_TECH_PRO']],
+  quoted,
+  { footer: '© NexusTechPro' }
+)
+```
+
+---
+
+##### Text
+
+```javascript
+// via sendMessage
+await sock.sendMessage(jid, {
+  aiRich: {
+    text: '## Hello\n\nThis supports **markdown**:\n\n- Bold\n- Lists\n- Headers',
+    footer: '_Powered by NexusTechPro_'
+  }
+}, { quoted: message })
+
+// multiple text blocks
+await sock.sendMessage(jid, {
+  aiRich: {
+    texts: ['## Title', 'First paragraph', 'Second paragraph'],
+    footer: '_NexusTechPro_'
+  }
+}, { quoted: message })
+```
+
+---
+
+##### Links & Search Sources
+
+```javascript
+// via sendMessage (with inline {{IE_N}} placeholders)
+await sock.sendMessage(jid, {
+  aiRich: {
+    text: 'Upload complete:\n✅ Freeimage — {{IE_0}}view here{{/IE_0}}\n✅ Yardsansh — {{IE_1}}view here{{/IE_1}}',
+    sources: [
+      { url: 'https://freeimage.host', displayName: 'Freeimage', subtitle: 'freeimage.host' },
+      { url: 'https://yardsansh.com', displayName: 'Yardsansh', subtitle: 'yardsansh.com' }
+    ],
+    footer: '✨ Done!'
+  }
+}, { quoted: message })
+
+// via sendLink shorthand (bare URL array)
+await sock.sendLink(
+  jid,
+  'Results:\n🔗 {{IE_0}}link one{{/IE_0}}\n🔗 {{IE_1}}link two{{/IE_1}}',
+  ['https://example.com/1', 'https://example.com/2'],
+  quoted,
+  { headerText: '📁 Upload Results', footer: '✨ Done!' }
+)
+
+// via sendLinkV2 shorthand (rich source objects with search engine)
+await sock.sendLinkV2(
+  jid,
+  'Search results:\n- {{IE_0}}Official docs{{/IE_0}}\n- {{IE_1}}GitHub repo{{/IE_1}}',
+  [
+    { url: 'https://www.npmjs.com/package/@nexustechpro/baileys', displayName: 'Official docs', subtitle: 'npmjs.com' },
+    { url: 'https://github.com/nexustechpro2/baileys', displayName: 'GitHub repo', subtitle: 'github.com' }
+  ],
+  quoted,
+  { headerText: '@nexustechpro/baileys', footer: 'Reference links', searchEngine: 'MAME' }
+)
+```
+
+---
+
+##### Images
+
+```javascript
+await sock.sendMessage(jid, {
+  aiRich: {
+    text: 'Here are some results:',
+    images: [
+      { url: 'https://example.com/img1.jpg', sourceUrl: 'https://example.com' },
+      { url: 'https://example.com/img2.jpg', sourceUrl: 'https://example.com' }
+    ],
+    footer: '_2 images found_'
+  }
+}, { quoted: message })
+```
+
+---
+
+##### Reels
+
+```javascript
+await sock.sendMessage(jid, {
+  aiRich: {
+    text: 'Top reels for you:',
+    reels: [
+      {
+        title: 'Creator Name',
+        creator: 'Creator Name',
+        videoUrl: 'https://example.com/reel1.mp4',
+        thumbnailUrl: 'https://example.com/thumb1.jpg',
+        profileIconUrl: 'https://example.com/avatar.jpg',
+        view_count: 12000,
+        likes_count: 800,
+        is_verified: true,
+        reel_source: 'IG'
+      }
+    ]
+  }
+}, { quoted: message })
+```
+
+---
+
+##### Multiple Codes
+
+```javascript
+await sock.sendMessage(jid, {
+  aiRich: {
+    texts: ['## Sorting Algorithms', 'Two implementations:'],
+    codes: [
+      { language: 'javascript', code: `const bubble = arr => { /* ... */ }` },
+      { language: 'python', code: `def quicksort(arr):\n    # ...` }
+    ],
+    footer: '_O(n²) vs O(n log n)_'
+  }
+}, { quoted: message })
+```
+
+---
+
+##### Composite (mix everything in one message)
+
+```javascript
+await sock.sendMessage(jid, {
+  aiRich: {
+    parts: [
+      { type: 'text', content: '## String Reversal' },
+      { type: 'code', language: 'javascript', content: `const reverse = s => s.split('').reverse().join('')` },
+      { type: 'text', content: 'Performance:' },
+      { type: 'table', table: ['Benchmarks', ['Method', 'Ops/sec'], ['split.reverse.join', '1.2M'], ['manual loop', '2.1M']] },
+      { type: 'sources', sources: [{ url: 'https://jsperf.app', displayName: 'JSPerf', subtitle: 'jsperf.app' }] }
+    ],
+    footer: '_NexusTechPro_'
+  }
+}, { quoted: message })
+
+// via sendRichMessage shorthand
+await sock.sendRichMessage(jid, {
+  text: 'Hello from sendRichMessage!',
+  code: 'console.log("works!")',
+  language: 'javascript',
+  footer: '_NexusTechPro_'
+}, quoted)
+```
+
+---
+
+##### LaTeX
+
+```javascript
+await sock.sendMessage(jid, {
+  aiRich: {
+    latexText: 'The quadratic formula:',
+    latex: [
+      { latexExpression: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}', url: '', width: 0, height: 0 }
+    ],
+    footer: '_Math rendering_'
+  }
+}, { quoted: message })
+
+// via shorthand
+await sock.sendLatex(jid, [
+  { latexExpression: 'E = mc^2', url: '', width: 0, height: 0 }
+], quoted, { text: 'Mass-energy equivalence:', footer: '_Einstein_' })
+```
+
+---
+
+##### Capture & Relay (forward an AI message)
+
+```javascript
+// Capture a received AI rich message
+const captured = sock.nexusHandler.captureAiRich(message.message)
+
+// Relay it to another jid
+if (captured) await sock.nexusHandler.relayAiRich(jid, captured, quoted)
+```
+
+---
+
+##### `aiRich` Options Reference
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `text` | `string` | Single markdown text block |
+| `texts` | `string[]` | Multiple text blocks in order |
+| `code` | `string \| { language, code }` | Single code block |
+| `codes` | `Array` | Multiple code blocks |
+| `language` | `string` | Default language for `code`/`codes` |
+| `table` | `Array` | `[title, headers[], ...rows[]]` |
+| `headers` + `rows` | `Array` | Alternative table format |
+| `images` | `Array` | Grid images with `url`, `sourceUrl` |
+| `sources` | `Array` | Search source cards |
+| `reels` | `Array` | Horizontal reel cards |
+| `latex` | `Array` | LaTeX expression objects |
+| `latexText` | `string` | Text shown above latex |
+| `parts` | `Array` | Composite ordered parts array |
+| `header` | `string` | Text prepended before content |
+| `footer` | `string` | Text appended after content |
+| `botJid` | `string` | Custom bot JID (default: `259786046210223@bot`) |
+| `forwardingScore` | `number` | Forward score (default: `2`) |
+| `disclaimerText` | `string` | Disclaimer shown in metadata |
+| `searchEngine` | `string` | Search engine label (default: `MAME`) |
+| `responseId` | `string` | Custom response UUID |
+| `forwarded` | `boolean` | Set `false` to disable forwarded context |
+| `includesUnifiedResponse` | `boolean` | Set `false` to send V1 only |
+
+---
+
 ### Shorthand Wrappers
 
 ```javascript
@@ -1047,6 +1391,17 @@ await sock.sendReaction(jid, message.key, '💖', options)
 await sock.sendSticker(jid, { url: './sticker.webp' }, options)
 await sock.sendContact(jid, { vcard }, options)
 await sock.sendForward(jid, message, { force: true })
+
+// ── AI Rich Messages ──────────────────────────────────────────────────────────
+await sock.sendCodeBlock(jid, code, quoted, { language, title, footer })
+await sock.sendCodeBlockV2(jid, code, quoted, { language, title, text, footer })
+await sock.sendTable(jid, title, headers, rows, quoted, { headerText, footer })
+await sock.sendTableV2(jid, tableArray, quoted, { headerText, text, footer })
+await sock.sendList(jid, title, items, quoted, { footer })
+await sock.sendLink(jid, text, links, quoted, { headerText, footer, botJid })
+await sock.sendLinkV2(jid, text, links, quoted, { headerText, footer, searchEngine })
+await sock.sendLatex(jid, expressions, quoted, { text, headerText, footer })
+await sock.sendRichMessage(jid, data, quoted)
 ```
 
 ---
