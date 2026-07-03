@@ -57,6 +57,9 @@
 - [Browser Options](#-browser-options)
 - [Socket Configuration](#-socket-configuration)
 - [Session Management](#-session-management)
+  - [File-based](#file-based-default)
+  - [Keyv-based (MongoDB, Redis, PostgreSQL, SQLite...)](#keyv-based-production)
+  - [Per-type routing](#per-type-routing-advanced)
 - [Sending Messages](#-sending-messages)
   - [Text Messages](#text-messages)
   - [Media Messages](#media-messages)
@@ -320,18 +323,104 @@ const sock = makeWASocket({
 
 ## 💾 Session Management
 
+Two adapters are available — both expose the same `{ state, saveCreds, close, getStats }` interface and work as drop-in replacements for each other.
+
+### File-based (default)
+
+Atomic writes, sha256 checksum integrity, per-file mutex locking, corrupt file recovery, and legacy file upgrade. Best for single-instance bots or local development.
+
 ```javascript
 import { useMultiFileAuthState } from '@nexustechpro/baileys'
 
-const { state, saveCreds } = await useMultiFileAuthState('auth_session')
-const sock = makeWASocket({ auth: state })
+const { state, saveCreds, close, getStats } = await useMultiFileAuthState('auth_session', {
+    preKeyRetention:   150,  // how many recent prekeys to keep (default: 150)
+    cleanupThreshold:  50,   // new prekeys before a cleanup runs (default: 50)
+    logger,                  // optional — logs checksum mismatches and cleanup events
+})
 
+const sock = makeWASocket({ auth: state })
 sock.ev.on('creds.update', saveCreds)
+
+// Diagnostics
+const stats = await getStats()
+// { totalFiles: 42, preKeyCount: 150, nextPreKeyId: 3200, folder: 'auth_session' }
+
+// Clean up on shutdown
+process.on('SIGINT', async () => { await close(); process.exit(0) })
 ```
 
-> 💡 For production, store credentials in a database (MongoDB, Redis, PostgreSQL) rather than the filesystem. The `useMultiFileAuthState` helper is for development only.
+### Keyv-based (production)
+
+Universal adapter for any database backend via [Keyv](https://github.com/jaredwray/keyv). Just pass a connection string — the matching backend driver is resolved and imported automatically, no manual adapter imports needed. Each key type gets its own namespaced store, so multiple bots can share one backend safely via `sessionId` scoping.
+
+The first argument is the **session ID** — equivalent to the folder name in `useMultiFileAuthState`. It scopes all keys so multiple bots can safely share one backend. The second argument is just a connection string:
+
+```javascript
+import { useKeyvAuthState } from '@nexustechpro/baileys'
+
+// ── Redis ─────────────────────────────────────────────────────────────────────
+const { state, saveCreds } = await useKeyvAuthState('bot1', 'redis://localhost:6379')
+
+// ── PostgreSQL / Supabase / Neon ──────────────────────────────────────────────
+const { state, saveCreds } = await useKeyvAuthState('bot1', 'postgresql://user:pass@localhost/db')
+
+// ── MongoDB ───────────────────────────────────────────────────────────────────
+const { state, saveCreds } = await useKeyvAuthState('bot1', 'mongodb://localhost/baileys')
+
+// ── MySQL / PlanetScale ───────────────────────────────────────────────────────
+const { state, saveCreds } = await useKeyvAuthState('bot1', 'mysql://user:pass@localhost/db')
+
+// ── SQLite (local, zero-config) ───────────────────────────────────────────────
+const { state, saveCreds } = await useKeyvAuthState('bot1', 'sqlite://auth.db')
+
+// ── In-memory (testing / ephemeral — data lost on restart) ───────────────────
+const { state, saveCreds } = await useKeyvAuthState('test')
+```
+
+No `import KeyvRedis from '@keyv/redis'`, no manual instantiation — just install the driver package and pass its connection string. The library resolves the right adapter for you based on the protocol (`redis:`, `postgres:`/`postgresql:`, `mongodb:`/`mongodb+srv:`, `mysql:`, `sqlite:`, `memcache:`/`memcached:`, `etcd:`).
+
+#### Per-type routing (advanced)
+
+Route different key types to different backends for optimal performance and cost. Sessions and identity data to PostgreSQL for durability, prekeys to SQLite for speed, everything else to Redis. Every value can be a connection string.
+
+```javascript
+import { useKeyvAuthState } from '@nexustechpro/baileys'
+
+const { state, saveCreds, close, getStats } = await useKeyvAuthState('bot1', {
+    default:              'redis://localhost',                     // fallback for all unspecified types
+    session:              'postgresql://user:pass@localhost/db',   // Signal sessions — durable
+    'sender-key':         'postgresql://user:pass@localhost/db',   // Group sender keys — durable
+    'identity-key':       'postgresql://user:pass@localhost/db',   // Identity keys — durable
+    'pre-key':            'sqlite://prekeys.db',                   // One-time prekeys — fast local
+}, { logger })
+
+const stats = await getStats()
+// { types: ['session', 'sender-key', ...], counts: { session: 3, 'pre-key': 150, ... } }
+```
+
+#### Advanced: pre-built instances
+
+For backends without a connection string (like DynamoDB, which needs a table name and region), pass a pre-built adapter instance instead:
+
+```javascript
+import { useKeyvAuthState } from '@nexustechpro/baileys'
+import KeyvDynamo from '@keyv/dynamo'
+
+const { state, saveCreds } = await useKeyvAuthState('bot1', new KeyvDynamo({ table: 'baileys', region: 'us-east-1' }))
+```
+
+A pre-built `Keyv` instance also works and is handled the same way.
+
+#### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `preKeyRetention` | `number` | `150` | Number of recent prekeys to keep |
+| `cleanupThreshold` | `number` | `50` | New prekeys generated before cleanup runs |
+| `logger` | `object` | `undefined` | Logger with `.info` / `.warn` methods |
 
 ---
+
 
 ## 💬 Sending Messages
 
