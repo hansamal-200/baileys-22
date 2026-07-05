@@ -318,12 +318,11 @@ const sock = makeWASocket({
   getMessage: async (key) => store.loadMessage(key.remoteJid, key.id),
 })
 ```
-
 ---
 
 ## 💾 Session Management
 
-Two adapters are available — both expose the same `{ state, saveCreds, close, getStats }` interface and work as drop-in replacements for each other.
+Two adapters are available. They do **not** share an identical return shape — see the differences noted below each.
 
 ### File-based (default)
 
@@ -332,7 +331,7 @@ Atomic writes, sha256 checksum integrity, per-file mutex locking, corrupt file r
 ```javascript
 import { useMultiFileAuthState } from '@nexustechpro/baileys'
 
-const { state, saveCreds, close, getStats } = await useMultiFileAuthState('auth_session', {
+const { state, saveCreds, getStats } = await useMultiFileAuthState('auth_session', {
     preKeyRetention:   150,  // how many recent prekeys to keep (default: 150)
     cleanupThreshold:  50,   // new prekeys before a cleanup runs (default: 50)
     logger,                  // optional — logs checksum mismatches and cleanup events
@@ -343,17 +342,18 @@ sock.ev.on('creds.update', saveCreds)
 
 // Diagnostics
 const stats = await getStats()
-// { totalFiles: 42, preKeyCount: 150, nextPreKeyId: 3200, folder: 'auth_session' }
-
-// Clean up on shutdown
-process.on('SIGINT', async () => { await close(); process.exit(0) })
+// { totalFiles: 42, preKeyCount: 150, nextPreKeyId: 3200, lastCleanupAt: '2026-07-05T...' }
 ```
+
+To fully log out and delete a session's files, remove the session folder directly (e.g. `fs.rm(folder, { recursive: true, force: true })`) — there is no `clearSession`/`close` method on this adapter.
 
 ### Keyv-based (production)
 
-Universal adapter for any database backend via [Keyv](https://github.com/jaredwray/keyv). Just pass a connection string — the matching backend driver is resolved and imported automatically, no manual adapter imports needed. Each key type gets its own namespaced store, so multiple bots can share one backend safely via `sessionId` scoping.
+Universal adapter for any database backend via [Keyv](https://github.com/jaredwray/keyv). Pass a connection string — the matching backend driver is resolved and imported automatically, no manual adapter imports needed.
 
-The first argument is the **session ID** — equivalent to the folder name in `useMultiFileAuthState`. It scopes all keys so multiple bots can safely share one backend. The second argument is just a connection string:
+Storage format matches `useMultiFileAuthState` exactly: every value is wrapped as `{ data, __checksum }` with a sha256 integrity check, so corruption is detected and self-healed the same way on both adapters. Reads also auto-detect and repair values that were written by an older/buggy version of this adapter (including arbitrarily nested `{ value: { value: ... } }` wrapping) — no manual data-fixing needed if you're upgrading from an earlier release.
+
+The first argument is the **session ID** — equivalent to the folder name in `useMultiFileAuthState`. It's used as the Keyv namespace, so multiple bots can safely share one backend. The second argument is a connection string, a pre-built `Keyv` instance, or a raw `KeyvStoreAdapter`:
 
 ```javascript
 import { useKeyvAuthState } from '@nexustechpro/baileys'
@@ -373,43 +373,42 @@ const { state, saveCreds } = await useKeyvAuthState('bot1', 'mysql://user:pass@l
 // ── SQLite (local, zero-config) ───────────────────────────────────────────────
 const { state, saveCreds } = await useKeyvAuthState('bot1', 'sqlite://auth.db')
 
+// ── etcd ──────────────────────────────────────────────────────────────────────
+const { state, saveCreds } = await useKeyvAuthState('bot1', 'etcd://localhost:2379')
+
+// ── Memcache ──────────────────────────────────────────────────────────────────
+const { state, saveCreds } = await useKeyvAuthState('bot1', 'memcache://localhost:11211')
+
 // ── In-memory (testing / ephemeral — data lost on restart) ───────────────────
 const { state, saveCreds } = await useKeyvAuthState('test')
 ```
 
-No `import KeyvRedis from '@keyv/redis'`, no manual instantiation — just install the driver package and pass its connection string. The library resolves the right adapter for you based on the protocol (`redis:`, `postgres:`/`postgresql:`, `mongodb:`/`mongodb+srv:`, `mysql:`, `sqlite:`, `memcache:`/`memcached:`, `etcd:`).
+Supported connection string protocols: `redis:`/`rediss:`, `mongodb:`/`mongodb+srv:`, `postgres:`/`postgresql:`, `mysql:`, `sqlite:`, `etcd:`, `memcache:`/`memcached:`. All matching driver packages (`@keyv/redis`, `@keyv/mongo`, `@keyv/postgres`, `@keyv/mysql`, `@keyv/sqlite`, `@keyv/etcd`, `@keyv/memcache`) ship as regular dependencies of this package — nothing extra to install.
 
-#### Per-type routing (advanced)
-
-Route different key types to different backends for optimal performance and cost. Sessions and identity data to PostgreSQL for durability, prekeys to SQLite for speed, everything else to Redis. Every value can be a connection string.
+For backends without a connection string (e.g. DynamoDB), or to reuse one connection across multiple `useKeyvAuthState` calls yourself, pass a pre-built adapter or `Keyv` instance instead of a string:
 
 ```javascript
 import { useKeyvAuthState } from '@nexustechpro/baileys'
+import KeyvMongo from '@keyv/mongo'
 
-const { state, saveCreds, close, getStats } = await useKeyvAuthState('bot1', {
-    default:              'redis://localhost',                     // fallback for all unspecified types
-    session:              'postgresql://user:pass@localhost/db',   // Signal sessions — durable
-    'sender-key':         'postgresql://user:pass@localhost/db',   // Group sender keys — durable
-    'identity-key':       'postgresql://user:pass@localhost/db',   // Identity keys — durable
-    'pre-key':            'sqlite://prekeys.db',                   // One-time prekeys — fast local
-}, { logger })
-
-const stats = await getStats()
-// { types: ['session', 'sender-key', ...], counts: { session: 3, 'pre-key': 150, ... } }
+const backend = new KeyvMongo('mongodb://localhost/baileys') // build once, share across sessions
+const { state, saveCreds } = await useKeyvAuthState('bot1', backend)
 ```
 
-#### Advanced: pre-built instances
+Same connection string passed as a plain string is automatically cached and reused across every `useKeyvAuthState` call in the process — you don't need to build the instance yourself just to avoid opening duplicate connections, but you can if you want the reference for other purposes.
 
-For backends without a connection string (like DynamoDB, which needs a table name and region), pass a pre-built adapter instance instead:
+> Per-type backend routing (e.g. prekeys on SQLite, sessions on Postgres) is not currently supported — one `useKeyvAuthState` call uses one backend for every key type.
+
+#### Clearing a session (logout)
 
 ```javascript
-import { useKeyvAuthState } from '@nexustechpro/baileys'
-import KeyvDynamo from '@keyv/dynamo'
+const { state, saveCreds, clearSession } = await useKeyvAuthState('bot1', 'redis://localhost:6379')
 
-const { state, saveCreds } = await useKeyvAuthState('bot1', new KeyvDynamo({ table: 'baileys', region: 'us-east-1' }))
+// on logout / when you want to wipe this session's auth entirely:
+await clearSession()
 ```
 
-A pre-built `Keyv` instance also works and is handled the same way.
+`clearSession()` wipes every key belonging to that `sessionId` — creds, prekeys, sessions, sender keys, everything — using each backend's native namespace-scoped bulk delete (a real `deleteMany`/`DELETE WHERE`/`SCAN`+delete under the hood, not a per-key loop). It only affects this session; other sessions sharing the same backend are untouched. There's no equivalent method on `useMultiFileAuthState` — delete the session folder instead.
 
 #### Options
 
@@ -419,9 +418,17 @@ A pre-built `Keyv` instance also works and is handled the same way.
 | `cleanupThreshold` | `number` | `50` | New prekeys generated before cleanup runs |
 | `logger` | `object` | `undefined` | Logger with `.info` / `.warn` methods |
 
+#### Return values
+
+| | `useMultiFileAuthState` | `useKeyvAuthState` |
+|---|---|---|
+| `state` | ✅ | ✅ |
+| `saveCreds` | ✅ | ✅ |
+| `getStats` | ✅ | ❌ |
+| `clearSession` | ❌ (delete the folder instead) | ✅ |
+| `close` | ❌ | ✅ (drops local listeners; safe to call, does not disconnect a shared backend) |
+
 ---
-
-
 ## 💬 Sending Messages
 
 `sock.sendMessage(jid, content, options?)` handles **every message type**. The `jid` can be a user, group, status broadcast, or newsletter.
