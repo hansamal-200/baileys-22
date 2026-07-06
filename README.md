@@ -397,6 +397,14 @@ const { state, saveCreds } = await useKeyvAuthState('bot1', backend)
 
 Same connection string passed as a plain string is automatically cached and reused across every `useKeyvAuthState` call in the process — you don't need to build the instance yourself just to avoid opening duplicate connections, but you can if you want the reference for other purposes.
 
+By default, Mongo/Postgres/MySQL/SQLite store everything in a collection/table named `keyv` (each adapter's own default). Set `collectionName` to use your own name instead — it's mapped to whatever each backend actually calls it (`collection` for Mongo, `table` for Postgres/MySQL/SQLite):
+
+```javascript
+const { state, saveCreds } = await useKeyvAuthState('bot1', 'mongodb://localhost/baileys', {
+    collectionName: 'baileys_auth', // instead of the default "keyv" collection
+})
+```
+
 > Per-type backend routing (e.g. prekeys on SQLite, sessions on Postgres) is not currently supported — one `useKeyvAuthState` call uses one backend for every key type.
 
 #### Clearing a session (logout)
@@ -417,6 +425,7 @@ await clearSession()
 | `preKeyRetention` | `number` | `150` | Number of recent prekeys to keep |
 | `cleanupThreshold` | `number` | `50` | New prekeys generated before cleanup runs |
 | `logger` | `object` | `undefined` | Logger with `.info` / `.warn` methods |
+| `collectionName` | `string` | adapter's own default (`"keyv"`) | Custom collection/table name — Keyv-based adapter only, ignored for connection-string-less (in-memory) and pre-built adapter/`Keyv` instances |
 
 #### Return values
 
@@ -429,6 +438,7 @@ await clearSession()
 | `close` | ❌ | ✅ (drops local listeners; safe to call, does not disconnect a shared backend) |
 
 ---
+
 ## 💬 Sending Messages
 
 `sock.sendMessage(jid, content, options?)` handles **every message type**. The `jid` can be a user, group, status broadcast, or newsletter.
