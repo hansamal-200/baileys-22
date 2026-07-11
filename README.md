@@ -1128,14 +1128,16 @@ await sock.sendMessage(jid, {
   stickerPack: {
     name: 'My Stickers',
     publisher: 'NexusTechPro',
-    description: 'Custom sticker collection',
     stickers: [
-      { data: buffer, emojis: ['😊'] },
-      { data: './sticker.png', emojis: ['😂'] },
-      { data: './sticker.webp', emojis: ['🎉'] },
-      { data: 'https://example.com/sticker.jpg', emojis: ['❤️'] }
+      { data: buffer,                              emojis: ['😊'] },
+      { data: './sticker.png',                     emojis: ['😂'] },
+      { data: './sticker.webp',                    emojis: ['🎉'] },
+      { data: './sticker.gif',                     emojis: ['✨'], isAnimated: true },
+      { data: './sticker.webm',                    emojis: ['🎬'], isAnimated: true },
+      { data: 'https://example.com/sticker.jpg',  emojis: ['❤️'] },
+      { data: buffer, type: StickerTypes.ROUNDED, emojis: ['🔥'] },
     ],
-    cover: coverBuffer  // optional cover image
+    cover: coverBuffer  // optional — defaults to first sticker
   }
 }, { quoted: message })
 
@@ -1143,7 +1145,6 @@ await sock.sendMessage(jid, {
 await sock.stickerPackMessage(jid, {
   name: 'My Stickers',
   publisher: 'NexusTechPro',
-  description: 'A collection',
   stickers: [
     { data: buffer, emojis: ['😊'] },
     { data: './sticker.png', emojis: ['😂'] }
@@ -1152,22 +1153,47 @@ await sock.stickerPackMessage(jid, {
 }, { quoted: message })
 ```
 
-**Supported formats:**
+**Per-sticker options:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `data` | Buffer \| string | required | Buffer, file path, URL, or SVG string |
+| `emojis` | string[] | `[]` | Associated emojis shown in WhatsApp sticker picker |
+| `type` | StickerTypes | `ROUNDED` | Crop/shape style (see below) |
+| `isAnimated` | boolean | `false` | Mark as animated (for GIF/WebM inputs) |
+| `isLottie` | boolean | `false` | Mark as Lottie animated (for TGS inputs) |
+| `accessibilityLabel` | string | `''` | Accessibility label for the sticker |
+
+**Sticker types (`StickerTypes`):**
+
+| Value | Description |
+|-------|-------------|
+| `StickerTypes.DEFAULT` | Original aspect ratio, no crop |
+| `StickerTypes.CROPPED` | Cropped to 512×512 |
+| `StickerTypes.FULL` | Stretched to fill 512×512 |
+| `StickerTypes.CIRCLE` | Circular mask |
+| `StickerTypes.ROUNDED` | Rounded corners |
+
+**Supported input formats:**
 
 | Format | Support | Notes |
 |--------|---------|-------|
-| WebP | ✅ Full | Used as-is |
+| WebP | ✅ Full | Static and animated, passed through sharp |
 | PNG | ✅ Full | Auto-converted to WebP |
 | JPG/JPEG | ✅ Full | Auto-converted to WebP |
-| GIF | ✅ Limited | Converts to static WebP |
 | BMP | ✅ Full | Auto-converted to WebP |
-| Video | ❌ | Not supported |
+| SVG | ✅ Full | Rendered and converted to WebP |
+| GIF | ✅ Animated | Converted to animated WebP via sharp |
+| WebM (VP9) | ✅ Animated | Converted via ffmpeg → animated WebP |
+| MP4 | ✅ Animated | Converted via ffmpeg → animated WebP |
+| TGS | ✅ Animated | Telegram gzip-compressed Lottie — converted via rlottie WASM → animated WebP |
+
 
 **Key behaviours:**
-- Packs >60 stickers are auto-batched
-- Stickers >1MB are auto-compressed
-- Invalid stickers are gracefully skipped
-- 2-second delay between batches to avoid rate limiting
+- Packs >60 stickers are auto-batched with a 2-second delay between batches
+- All format conversion and EXIF metadata embedding handled automatically by `wa-sticker-formatter`
+- Invalid or unprocessable stickers are gracefully skipped
+- Cover defaults to the first sticker if not provided
 
 ---
 
