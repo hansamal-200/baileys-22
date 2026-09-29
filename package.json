@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@nexustechpro/baileys",
   "type": "module",
-  "version": "2.2.6",
+  "version": "2.2.8",
   "description": "Advanced WhatsApp Web API built on Baileys — interactive messages, buttons, carousels, products, events, payments, polls, albums, sticker packs and more.",
   "keywords": [
     "baileys",
@@ -109,6 +109,8 @@
     "@keyv/postgres": "^2.2.3",
     "@keyv/redis": "^5.1.6",
     "@keyv/sqlite": "^4.0.8",
+    "acorn": "^8.18.0",
+    "acorn-walk": "^8.3.5",
     "async-mutex": "^0.5.0",
     "axios": "^1.6.0",
     "cache-manager": "latest",
@@ -126,6 +128,7 @@
     "protobufjs": "latest",
     "qrcode-terminal": "^0.12.0",
     "rlottie": "^0.1.2",
+    "undici": "^8.10.1",
     "unfurl.js": "^6.4.0",
     "url-regex-safe": "^4.0.0",
     "uuid": "latest",
@@ -162,6 +165,7 @@
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "tsc-esm-fix": "^3.1.2",
+    "tsup": "^8.5.1",
     "tsx": "^4.20.3",
     "typedoc": "^0.27.9",
     "typedoc-plugin-markdown": "4.4.2",
@@ -179,8 +183,35 @@
       "optional": true
     }
   },
+  "overrides": {
+    "wa-sticker-formatter": {
+      "sharp": "^0.33.5",
+      "axios": "^1.6.0",
+      "file-type": "^22.0.1",
+      "image-size": "^2.0.0"
+    },
+    "tar": "^7.5.22",
+    "@tootallnate/once": "^3.0.1"
+  },
+  "resolutions": {
+    "wa-sticker-formatter/sharp": "^0.33.5",
+    "wa-sticker-formatter/axios": "^1.6.0",
+    "wa-sticker-formatter/file-type": "^22.0.1",
+    "wa-sticker-formatter/image-size": "^2.0.0",
+    "tar": "^7.5.22",
+    "@tootallnate/once": "^3.0.1"
+  },
   "packageManager": "yarn@4.9.2",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./lib/index.js",
+      "require": "./lib/index.cjs",
+      "default": "./lib/index.js"
+    },
+    "./lib/*": "./lib/*",
+    "./WAProto/*": "./WAProto/*"
   }
 }
